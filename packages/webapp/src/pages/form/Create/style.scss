@@ -1335,16 +1335,3 @@ button.connect-stripe {
     @apply opacity-60;
   }
 }
-
-// Add these styles for single page form
-.heyform-single-page {
-  @apply flex flex-col w-full;
-  
-  .heyform-all-questions {
-    @apply flex flex-col gap-8 w-full;
-  }
-
-  .heyform-question-container {
-    @apply p-6 bg-white rounded-lg shadow-sm border border-gray-100;
-  }
-}

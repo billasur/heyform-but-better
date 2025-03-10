@@ -165,23 +165,11 @@ export const Blocks = () => {
     return <ThankYou field={field} />
   }
 
-  // Single page form view
   return (
-    <div className="heyform-single-page">
+    <>
       <Header />
-      <div className="heyform-all-questions">
-        {state.fields.map((field, index) => (
-          <div key={field.id} className="heyform-question-container">
-            <Block 
-              field={field} 
-              index={index} 
-              isActive={true} 
-              isScrollable={false}
-            />
-          </div>
-        ))}
-      </div>
+      <Main />
       <Footer />
-    </div>
+    </>
   )
 }

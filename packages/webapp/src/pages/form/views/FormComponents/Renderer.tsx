@@ -27,6 +27,7 @@ import {
 } from './utils'
 import { Blocks } from './views/Blocks'
 import { Sidebar } from './views/Sidebar'
+import { SinglePageForm } from './views/SinglePageForm'
 
 export interface RendererProps {
   className?: string
@@ -38,6 +39,7 @@ export interface RendererProps {
   reportAbuseURL?: string
   alwaysShowNextButton?: boolean
   onSubmit?: (values: Record<string, any>, isPartial?: boolean, stripe?: IStripe) => Promise<void>
+  singlePage?: boolean
 }
 
 function initStore(form: IFormModel, autoSave: boolean, allowPayment: boolean): IState {
@@ -106,7 +108,8 @@ export const Renderer: FC<RendererProps> = ({
   reportAbuseURL,
   alwaysShowNextButton = false,
   customUrlRedirects = false,
-  onSubmit
+  onSubmit,
+  singlePage = true
 }) => {
   const query = useQuery()
   const [isAndroid, setAndroid] = useState(false)
@@ -126,7 +129,8 @@ export const Renderer: FC<RendererProps> = ({
       alwaysShowNextButton,
       onSubmit,
       ...initStore(form, autoSave, allowPayment),
-      query
+      query,
+      singlePage
     }),
     [
       reportAbuseURL,
@@ -136,7 +140,8 @@ export const Renderer: FC<RendererProps> = ({
       query,
       form,
       autoSave,
-      allowPayment
+      allowPayment,
+      singlePage
     ]
   )
   const [state, dispatch] = useReducer(StoreReducer, memoState)
@@ -182,13 +187,7 @@ export const Renderer: FC<RendererProps> = ({
           className
         )}
       >
-        <div
-          className={clsx('heyform-wrapper', {
-            'heyform-is-welcome': !state.isStarted && state.welcomeField
-          })}
-        >
-          <Blocks />
-        </div>
+        {singlePage ? <SinglePageForm /> : <Blocks />}
         {state.settings?.enableQuestionList && <Sidebar />}
       </div>
     </StoreContext.Provider>

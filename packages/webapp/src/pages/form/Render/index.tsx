@@ -18,6 +18,7 @@ import { CustomCode } from './CustomCode'
 import { PasswordCheck } from './PasswordCheck'
 import { geeTestToken, initGeeTest, recaptchaToken } from './utils/captcha'
 import { Uploader } from './utils/uploader'
+import { FirebaseFormService } from '@/firebase/formService'
 
 let captchaRef: any = null
 
@@ -77,18 +78,43 @@ const Render = () => {
         })
         .filter(Boolean) as HiddenFieldAnswer[]
 
-      const { clientSecret } = await FormService.completeSubmission({
-        formId,
-        answers: {
+      // Use Firebase for submission if enabled
+      let clientSecret
+      if (window.heyform?.useFirebase) {
+        // Upload files to Firebase Storage if needed
+        const fileUrls = {}
+        if (file) {
+          for (const [key, fileObj] of Object.entries(file)) {
+            if (fileObj instanceof File) {
+              fileUrls[key] = await FirebaseFormService.uploadFile(formId, fileObj)
+            }
+          }
+        }
+
+        // Submit to Firebase
+        await FirebaseFormService.submitForm(formId, {
           ...values,
-          ...file
-        },
-        hiddenFields,
-        openToken: openTokenRef.current,
-        passwordToken: passwordTokenRef.current,
-        partialSubmission,
-        ...(token || {})
-      })
+          ...fileUrls,
+          hiddenFields,
+          token
+        })
+      } else {
+        // Use existing API
+        const result = await FormService.completeSubmission({
+          formId,
+          answers: {
+            ...values,
+            ...file
+          },
+          hiddenFields,
+          openToken: openTokenRef.current,
+          passwordToken: passwordTokenRef.current,
+          partialSubmission,
+          ...(token || {})
+        })
+        
+        clientSecret = result.clientSecret
+      }
 
       if (stripe && helper.isValid(clientSecret)) {
         const paymentField = form!.fields?.find(f => f.kind === FieldKindEnum.PAYMENT)
@@ -150,6 +176,7 @@ const Render = () => {
             autoSave={!(form.settings?.enableTimeLimit && helper.isValid(form.settings?.timeLimit))}
             alwaysShowNextButton={true}
             customUrlRedirects={true}
+            singlePage={true}
             onSubmit={handleSubmit}
           />
           <CustomCode form={form} query={query} />

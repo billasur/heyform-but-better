@@ -9,7 +9,3 @@ export * from './submission.service'
 export * from './template.service'
 export * from './integration.service'
 export * from './payment.service'
-
-// Export Firebase services
-export { FormService } from '../firebase/services/formService';
-// Add other Firebase services as needed
