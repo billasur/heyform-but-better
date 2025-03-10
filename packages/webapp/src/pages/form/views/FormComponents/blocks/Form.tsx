@@ -83,133 +83,25 @@ export const Form: FC<FormProps> = ({
     return !field.validations?.required && field.kind !== 'statement' && field.kind !== 'group'
   }, [])
 
-  async function handleFinish(formValue: any) {
-    const value = getValues ? getValues(formValue) : formValue
+  const handleFinish = async (values: any) => {
+    try {
+      setLoading(true)
+      setSubmitError('')
 
-    if (helper.isValid(value)) {
+      // For single page form, we collect all values at once
+      await state.onSubmit?.(values, false, state.stripe)
+      
       dispatch({
-        type: 'setValues',
+        type: 'setSubmitted',
         payload: {
-          values: {
-            [field.id]: value
-          }
+          isSubmitted: true
         }
       })
+    } catch (err: any) {
+      setSubmitError(err.message)
+    } finally {
+      setLoading(false)
     }
-
-    const values = { ...state.values, [field.id]: value }
-    const isTouched = validateLogicField(field, state.jumpFieldIds, values)
-    const isPartialSubmission = state.isScrollNextDisabled && !isTouched
-
-    // Validate all form fields value
-    if (isLastBlock || isPartialSubmission) {
-      if (loading) {
-        return
-      }
-
-      if (isLastBlock) {
-        dispatch({
-          type: 'setIsSubmitTouched',
-          payload: {
-            isSubmitTouched: true
-          }
-        })
-      }
-
-      setSubmitError(undefined)
-
-      const fields = isPartialSubmission
-        ? sliceFieldsByLogics(state.fields, state.jumpFieldIds)
-        : state.fields
-
-      try {
-        validateFields(fields, values)
-        setLoading(true)
-
-        // 修改 payment value
-        if (state.stripe) {
-          const paymentField = state.fields.find(f => f.kind === FieldKindEnum.PAYMENT)
-
-          if (paymentField) {
-            const value = values[paymentField.id]
-
-            if (helper.isValid(value)) {
-              const price = paymentField.properties?.price as NumberPrice
-              const currency = paymentField.properties?.currency
-
-              if (!helper.isValid(price?.value) || price.value <= 0 || !helper.isValid(currency)) {
-                values[paymentField.id] = undefined
-              } else {
-                values[paymentField.id] = {
-                  amount: Big(price.value).times(100).toNumber(),
-                  currency,
-                  billingDetails: {
-                    name: value.name
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        // Submit form
-        await state.onSubmit?.(values, isPartialSubmission, state.stripe)
-
-        if (helper.isTrue(state.query.hideAfterSubmit)) {
-          sendHideModalMessage()
-        }
-
-        setLoading(false)
-        dispatch({
-          type: 'setIsSubmitted',
-          payload: {
-            isSubmitted: true
-          }
-        })
-
-        // Clear storage cache
-        removeStorage(state.formId)
-      } catch (err: any) {
-        console.error(err, err?.response)
-        setLoading(false)
-
-        if (helper.isValid(err?.response?.id)) {
-          dispatch({
-            type: 'scrollToField',
-            payload: {
-              fieldId: err?.response?.id,
-              errorFieldId: err?.response?.id,
-              errorFieldMessage: err?.response?.message
-            }
-          })
-        } else {
-          setSubmitError(err?.message)
-        }
-      }
-
-      return
-    }
-
-    // If the user submits once, verify the form data every time before scroll to next question
-    if (state.isSubmitTouched) {
-      try {
-        validateFields(state.fields, values)
-      } catch (err: any) {
-        console.error(err, err?.response)
-        dispatch({
-          type: 'scrollToField',
-          payload: {
-            fieldId: err.response?.id,
-            errorFieldId: err?.response?.id
-          }
-        })
-
-        return
-      }
-    }
-
-    // Navigate to next form field
-    dispatch({ type: 'scrollNext' })
   }
 
   function handleValuesChange(changes: any, values: any) {
@@ -274,7 +166,7 @@ export const Form: FC<FormProps> = ({
   return (
     <RCForm
       className={clsx('heyform-form', {
-        'heyform-form-last': isLastBlock
+        'heyform-form-single-page': true
       })}
       autoComplete="off"
       form={form}
@@ -293,52 +185,25 @@ export const Form: FC<FormProps> = ({
       )}
 
       {/* Submit */}
-      {isLastBlock || state.isScrollNextDisabled ? (
-        <>
-          {submitError && (
-            <div className="heyform-validation-wrapper">
-              <div className="heyform-validation-error">{submitError}</div>
-            </div>
-          )}
-          <Field shouldUpdate={true}>
-            <Submit text={t('Submit')} loading={loading} />
-          </Field>
-          {isLastBlock && (
-            <div className="heyform-submit-warn">
-              {t('Never submit passwords!')} -{' '}
-              <a
-                href={state.reportAbuseURL || 'https://docs.heyform.net/report-abuse'}
-                target="_blank"
-              >
-                {t('Report Abuse')}
-              </a>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="mt-8 flex items-center gap-2">
-          {submitVisible && (
-            <Field shouldUpdate={true}>
-              {state.alwaysShowNextButton ? (
-                <Submit className="!mt-0" text={t('Next')} icon={NextIcon} />
-              ) : (
-                (_, __, { getFieldsError }) => {
-                  return (
-                    !getFieldsError().some(({ errors }) => errors.length) && (
-                      <Submit className="!mt-0" text={t('Next')} icon={NextIcon} />
-                    )
-                  )
-                }
-              )}
-            </Field>
-          )}
-          {isSkipable && (
-            <button className="heyform-skip-button" onClick={handleSkip}>
-              {t('Skip')}
-            </button>
-          )}
+      <>
+        {submitError && (
+          <div className="heyform-validation-wrapper">
+            <div className="heyform-validation-error">{submitError}</div>
+          </div>
+        )}
+        <Field shouldUpdate={true}>
+          <Submit text={t('Submit')} loading={loading} />
+        </Field>
+        <div className="heyform-submit-warn">
+          {t('Never submit passwords!')} -{' '}
+          <a
+            href={state.reportAbuseURL || 'https://docs.heyform.net/report-abuse'}
+            target="_blank"
+          >
+            {t('Report Abuse')}
+          </a>
         </div>
-      )}
+      </>
     </RCForm>
   )
 }
